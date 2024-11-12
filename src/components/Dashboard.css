@@ -1,0 +1,61 @@
+.dashboard-container {
+    display: flex;
+    font-family: Arial, sans-serif;
+    width: 1520px;
+}
+
+.main-content {
+    flex: 1;
+    background-color: #f8f9fa; 
+
+
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    margin-top: 20px;
+    padding: 30px;
+}
+
+/* Container for the cards in Dashboard */
+.dashboard-cards {
+    display: flex;
+    margin-left: 200px;
+    margin-top: 200px;
+    gap: 60px;
+    flex-wrap: nowrap; /* Keeps cards in a single row */
+    overflow-x: auto; /* Enables horizontal scroll if content overflows */
+    padding: 20px 0;
+}
+
+/* Box styling */
+.box {
+    flex: 1;
+    min-width: 200px; /* Minimum width for responsiveness */
+    max-width: 250px; /* Limit max-width to fit in one row */
+    padding: 40px;
+    text-align: center;
+    font-size: 1.2em;
+    background-color: #ffea04;
+    color: #000000;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+}
+
+/* Hover effect for the box */
+.box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Notification icon styling */
+.notification-icon {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.2em;
+    color: #ffc107; /* Yellow for contrast on blue */
+}
