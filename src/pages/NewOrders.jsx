@@ -1,95 +1,160 @@
-import React, { useState } from 'react';
-import './NewReady.css';
+import React, { useEffect, useState } from "react";
+import { db } from "../firebase";
+import { collection, getDocs, addDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import "./NewReady.css";
 
 const NewOrders = () => {
-    const orders = [
-        {
-            orderId: 'OD294415',
-            userEmail: 'ovigalathure@gmail.com',
-            productName: 'Sea Food Nasigurang',
-            quantity: 3,
-            price: 1500.00,
-            totalPrice: 4500.00,
-            timestamp: '11/10/2024, 6:58:14 PM'
-        },
-        {
-            orderId: 'OD243083',
-            userEmail: 'th.ja.rangi@gmail.com',
-            productName: 'Egg & Vegetable Fried Rice',
-            quantity: 2,
-            price: 650.00,
-            totalPrice: 1300.00,
-            timestamp: '10/28/2024, 3:57:23 PM'
-        },
-        // Add more orders as needed
-    ];
+  const [orders, setOrders] = useState([]);
+  const [selectedOrders, setSelectedOrders] = useState([]);
 
-    const [selectedOrders, setSelectedOrders] = useState([]);
-
-    const toggleSelectAll = () => {
-        if (selectedOrders.length === orders.length) {
-            setSelectedOrders([]); // Deselect all
-        } else {
-            setSelectedOrders(orders.map(order => order.orderId)); // Select all
-        }
+  useEffect(() => {
+    const fetchPendingOrders = async () => {
+      try {
+        const pendingOrdersCollection = collection(db, "pendingOrders");
+        const orderSnapshot = await getDocs(pendingOrdersCollection);
+        const orderList = orderSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setOrders(orderList);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      }
     };
 
-    const toggleSelectOrder = (orderId) => {
-        setSelectedOrders(prevSelected =>
-            prevSelected.includes(orderId)
-                ? prevSelected.filter(id => id !== orderId) // Deselect if already selected
-                : [...prevSelected, orderId] // Select if not already selected
-        );
-    };
+    fetchPendingOrders();
+  }, []);
 
-    const isAllSelected = selectedOrders.length === orders.length;
-
-    return (
-        <div className="new-orders-container">
-            <h2>New Orders</h2>
-            <table className="orders-table">
-                <thead>
-                    <tr>
-                        <th>
-                            <input
-                                type="checkbox"
-                                checked={isAllSelected}
-                                onChange={toggleSelectAll}
-                            />
-                        </th>
-                        <th>Order ID</th>
-                        <th>User Email</th>
-                        <th>Product Name(s)</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
-                        <th>Total Price</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {orders.map((order, index) => (
-                        <tr key={index}>
-                            <td>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedOrders.includes(order.orderId)}
-                                    onChange={() => toggleSelectOrder(order.orderId)}
-                                />
-                            </td>
-                            <td>{order.orderId}</td>
-                            <td>{order.userEmail}</td>
-                            <td>{order.productName}</td>
-                            <td>{order.quantity}</td>
-                            <td>{order.price.toFixed(2)}</td>
-                            <td>{order.totalPrice.toFixed(2)}</td>
-                            <td>{order.timestamp}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-            <button className="noted-button">Noted</button>
-        </div>
+  const toggleSelectOrder = (orderId) => {
+    setSelectedOrders((prevSelectedOrders) =>
+      prevSelectedOrders.includes(orderId)
+        ? prevSelectedOrders.filter((id) => id !== orderId)
+        : [...prevSelectedOrders, orderId]
     );
+  };
+
+  const handleNoted = async () => {
+    try {
+      for (const orderId of selectedOrders) {
+        const order = orders.find((order) => order.id === orderId);
+
+        if (!order) {
+          console.error(`Order with ID ${orderId} not found in state.`);
+          continue;
+        }
+
+        // Add to `readyOrders` collection
+        await addDoc(collection(db, "readyOrders"), {
+          ...order,
+          timestamp: Timestamp.fromDate(new Date()),
+          status: "Ready",
+        });
+
+        // Send a notification based on `deliveryOption`
+        if (order.deliveryOption === "Take Away") {
+          await addDoc(collection(db, "notifications"), {
+            userEmail: order.userEmail,
+            message: `Your order with ID: ${orderId} is ready. Hurry to pick it up!`,
+            orderId: orderId,
+            timestamp: Timestamp.fromDate(new Date()),
+            read: false,
+          });
+        } else if (order.deliveryOption === "Delivery") {
+          console.log(`Delivery will be scheduled later for order ID: ${orderId}`);
+        }
+
+        // Attempt to remove from `pendingOrders`
+        const orderDocRef = doc(db, "pendingOrders", orderId);
+        console.log("Deleting from pendingOrders:", orderDocRef.path);
+        await deleteDoc(orderDocRef);
+        console.log(`Order with ID ${orderId} removed from pendingOrders.`);
+      }
+
+      // Update state to remove confirmed orders from the displayed list
+      setOrders((prevOrders) => prevOrders.filter((order) => !selectedOrders.includes(order.id)));
+      setSelectedOrders([]); // Clear selected orders after confirming
+
+      console.log("Orders have been moved to readyOrders and notifications sent.");
+    } catch (error) {
+      console.error("Error updating ready orders or deleting from pendingOrders:", error);
+    }
+  };
+
+  return (
+    <div className="new-orders-container">
+      <h2>New & Pending Orders</h2>
+      <table className="orders-table">
+        <thead>
+          <tr>
+            <th>
+              <input
+                type="checkbox"
+                onChange={() => {
+                  setSelectedOrders(
+                    selectedOrders.length === orders.length ? [] : orders.map((order) => order.id)
+                  );
+                }}
+                checked={selectedOrders.length === orders.length && orders.length > 0}
+              />
+            </th>
+            <th>Order ID</th>
+            <th>User Email</th>
+            <th>Product Name(s)</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Total Price</th>
+            <th>Delivery Option</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.length > 0 ? (
+            orders.map((order) => (
+              <tr key={order.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedOrders.includes(order.id)}
+                    onChange={() => toggleSelectOrder(order.id)}
+                  />
+                </td>
+                <td>{order.orderId}</td>
+                <td>{order.userEmail}</td>
+                <td>{order.items.map((item) => item.productName).join(", ")}</td>
+                <td>
+                  {order.items.reduce((total, item) => total + item.quantity, 0)}
+                </td>
+                <td>{order.items.map((item) => item.price).join(", ")}</td>
+                <td>{order.totalPrice?.toFixed(2)}</td>
+                <td>{order.deliveryOption || "N/A"}</td>
+                <td>
+                  {order.timestamp ? (
+                    <>
+                      {new Date(order.timestamp.seconds * 1000).toLocaleDateString()}{" "}
+                      {new Date(order.timestamp.seconds * 1000).toLocaleTimeString()}
+                    </>
+                  ) : (
+                    "N/A"
+                  )}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="9">No new or pending orders found</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <button
+        className="ready-button"
+        onClick={handleNoted}
+        disabled={selectedOrders.length === 0}
+      >
+        Ready
+      </button>
+    </div>
+  );
 };
 
 export default NewOrders;

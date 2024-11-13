@@ -1,38 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import './NewReady.css';
 
 const ReadyOrders = () => {
-    const orders = [
-        {
-            orderId: 'OD294415',
-            userEmail: 'ovigalathure@gmail.com',
-            productName: 'Sea Food Nasigurang',
-            quantity: 3,
-            price: 1500.00,
-            totalPrice: 4500.00,
-            timestamp: '11/10/2024, 6:58:14 PM',
-            city: 'Colombo'
-        },
-        {
-            orderId: 'OD243083',
-            userEmail: 'th.ja.rangi@gmail.com',
-            productName: 'Egg & Vegetable Fried Rice',
-            quantity: 2,
-            price: 650.00,
-            totalPrice: 1300.00,
-            timestamp: '10/28/2024, 3:57:23 PM',
-            city: 'Kandy'
-        },
-        // Add more orders as needed
-    ];
-
+    const [orders, setOrders] = useState([]);
     const [selectedOrders, setSelectedOrders] = useState([]);
+
+    useEffect(() => {
+        const fetchReadyOrders = async () => {
+            try {
+                const readyOrdersCollection = collection(db, "readyOrders");
+                const orderSnapshot = await getDocs(readyOrdersCollection);
+                const orderList = orderSnapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+                setOrders(orderList);
+            } catch (error) {
+                console.error("Error fetching ready orders:", error);
+            }
+        };
+
+        fetchReadyOrders();
+    }, []);
 
     const toggleSelectAll = () => {
         if (selectedOrders.length === orders.length) {
             setSelectedOrders([]); // Deselect all
         } else {
-            setSelectedOrders(orders.map(order => order.orderId)); // Select all
+            setSelectedOrders(orders.map(order => order.id)); // Select all
         }
     };
 
@@ -66,29 +63,48 @@ const ReadyOrders = () => {
                         <th>Price</th>
                         <th>Total Price</th>
                         <th>Timestamp</th>
-                        <th>City</th>
+                        
+                        <th>Status</th> {/* New Status column */}
                     </tr>
                 </thead>
                 <tbody>
-                    {orders.map((order, index) => (
-                        <tr key={index}>
-                            <td>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedOrders.includes(order.orderId)}
-                                    onChange={() => toggleSelectOrder(order.orderId)}
-                                />
-                            </td>
-                            <td>{order.orderId}</td>
-                            <td>{order.userEmail}</td>
-                            <td>{order.productName}</td>
-                            <td>{order.quantity}</td>
-                            <td>{order.price.toFixed(2)}</td>
-                            <td>{order.totalPrice.toFixed(2)}</td>
-                            <td>{order.timestamp}</td>
-                            <td>{order.city}</td>
+                    {orders.length > 0 ? (
+                        orders.map((order) => (
+                            <tr key={order.id}>
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedOrders.includes(order.id)}
+                                        onChange={() => toggleSelectOrder(order.id)}
+                                    />
+                                </td>
+                                <td>{order.orderId}</td>
+                                <td>{order.userEmail}</td>
+                                <td>{order.items.map(item => item.productName).join(", ")}</td>
+                                <td>{order.items.reduce((total, item) => total + (item.quantity || 0), 0)}</td>
+                                <td>{order.items.map(item => 
+                                    (typeof item.price === 'number' ? item.price.toFixed(2) : item.price)
+                                ).join(", ")}</td>
+                                <td>{order.totalPrice ? order.totalPrice.toFixed(2) : "N/A"}</td>
+                                <td>
+                                    {order.timestamp ? (
+                                        <>
+                                            {new Date(order.timestamp.seconds * 1000).toLocaleDateString()}{" "}
+                                            {new Date(order.timestamp.seconds * 1000).toLocaleTimeString()}
+                                        </>
+                                    ) : (
+                                        "N/A"
+                                    )}
+                                </td>
+                                
+                                <td>{order.status || "Pending"}</td> {/* Display order status */}
+                            </tr>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan="10">No ready orders found</td>
                         </tr>
-                    ))}
+                    )}
                 </tbody>
             </table>
             <button className="ready-button">Ready</button>
