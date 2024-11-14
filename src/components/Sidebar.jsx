@@ -20,7 +20,7 @@ const Sidebar = () => {
                     <li>New Orders</li>
                 </NavLink>
                 <NavLink to="/dashboard/ready-orders" className={({ isActive }) => (isActive ? "active-link" : "")}>
-                    <li>Ready Orders</li>
+                    <li>Preparing Orders</li>
                 </NavLink>
                 <NavLink to="/dashboard/profile" className={({ isActive }) => (isActive ? "active-link" : "")}>
                     <li>Profile</li>

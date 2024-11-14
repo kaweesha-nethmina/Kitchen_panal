@@ -14,7 +14,7 @@ const Topbar = () => {
             case '/dashboard/new-orders':
                 return 'New Orders';
             case '/dashboard/ready-orders':
-                return 'Ready Orders';
+                return 'Preparing Orders';
             case '/dashboard/profile':
                 return 'Profile';
             default:

@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
-import { collection, getDocs, addDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, deleteDoc, doc, addDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 import "./NewReady.css";
 
 const NewOrders = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrders, setSelectedOrders] = useState([]);
+  const navigate = useNavigate();
 
+  // Fetch pending orders from Firestore
   useEffect(() => {
     const fetchPendingOrders = async () => {
       try {
@@ -25,6 +28,53 @@ const NewOrders = () => {
     fetchPendingOrders();
   }, []);
 
+  // Function to add selected orders to the readyOrders collection and delete them from pendingOrders
+  const moveToReadyOrders = async (orderId) => {
+    try {
+      // Find the order data by orderId
+      const orderToMove = orders.find((order) => order.id === orderId);
+      if (orderToMove) {
+        // Add the order data to the readyOrders collection
+        await addDoc(collection(db, "readyOrders"), {
+          ...orderToMove,
+          status: "Ready",
+        });
+
+        // Delete the order from pendingOrders
+        await deleteOrderByOrderId(orderId);
+      }
+    } catch (error) {
+      console.error("Error moving order to readyOrders:", error);
+    }
+  };
+
+  // Function to delete the document based on the orderId
+  const deleteOrderByOrderId = async (orderId) => {
+    try {
+      const q = query(collection(db, "pendingOrders"), where("orderId", "==", orderId));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const docRef = doc(db, "pendingOrders", querySnapshot.docs[0].id);
+        await deleteDoc(docRef);
+        console.log(`Successfully deleted order with orderId: ${orderId}`);
+        setOrders((prevOrders) => prevOrders.filter((order) => order.id !== docRef.id));
+      } else {
+        console.log("No order found with the specified orderId");
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+    }
+  };
+
+  // Handle moving selected orders to readyOrders and then deleting them
+  const handleDeleteSelectedOrders = () => {
+    selectedOrders.forEach((orderId) => {
+      moveToReadyOrders(orderId);
+    });
+    setSelectedOrders([]);
+  };
+
   const toggleSelectOrder = (orderId) => {
     setSelectedOrders((prevSelectedOrders) =>
       prevSelectedOrders.includes(orderId)
@@ -33,56 +83,10 @@ const NewOrders = () => {
     );
   };
 
-  const handleNoted = async () => {
-    try {
-      for (const orderId of selectedOrders) {
-        const order = orders.find((order) => order.id === orderId);
-
-        if (!order) {
-          console.error(`Order with ID ${orderId} not found in state.`);
-          continue;
-        }
-
-        // Add to `readyOrders` collection
-        await addDoc(collection(db, "readyOrders"), {
-          ...order,
-          timestamp: Timestamp.fromDate(new Date()),
-          status: "Ready",
-        });
-
-        // Send a notification based on `deliveryOption`
-        if (order.deliveryOption === "Take Away") {
-          await addDoc(collection(db, "notifications"), {
-            userEmail: order.userEmail,
-            message: `Your order with ID: ${orderId} is ready. Hurry to pick it up!`,
-            orderId: orderId,
-            timestamp: Timestamp.fromDate(new Date()),
-            read: false,
-          });
-        } else if (order.deliveryOption === "Delivery") {
-          console.log(`Delivery will be scheduled later for order ID: ${orderId}`);
-        }
-
-        // Attempt to remove from `pendingOrders`
-        const orderDocRef = doc(db, "pendingOrders", orderId);
-        console.log("Deleting from pendingOrders:", orderDocRef.path);
-        await deleteDoc(orderDocRef);
-        console.log(`Order with ID ${orderId} removed from pendingOrders.`);
-      }
-
-      // Update state to remove confirmed orders from the displayed list
-      setOrders((prevOrders) => prevOrders.filter((order) => !selectedOrders.includes(order.id)));
-      setSelectedOrders([]); // Clear selected orders after confirming
-
-      console.log("Orders have been moved to readyOrders and notifications sent.");
-    } catch (error) {
-      console.error("Error updating ready orders or deleting from pendingOrders:", error);
-    }
-  };
-
   return (
     <div className="new-orders-container">
       <h2>New & Pending Orders</h2>
+
       <table className="orders-table">
         <thead>
           <tr>
@@ -118,12 +122,10 @@ const NewOrders = () => {
                     onChange={() => toggleSelectOrder(order.id)}
                   />
                 </td>
-                <td>{order.orderId}</td>
+                <td>{order.id}</td>
                 <td>{order.userEmail}</td>
                 <td>{order.items.map((item) => item.productName).join(", ")}</td>
-                <td>
-                  {order.items.reduce((total, item) => total + item.quantity, 0)}
-                </td>
+                <td>{order.items.reduce((total, item) => total + item.quantity, 0)}</td>
                 <td>{order.items.map((item) => item.price).join(", ")}</td>
                 <td>{order.totalPrice?.toFixed(2)}</td>
                 <td>{order.deliveryOption || "N/A"}</td>
@@ -146,12 +148,13 @@ const NewOrders = () => {
           )}
         </tbody>
       </table>
+
       <button
         className="ready-button"
-        onClick={handleNoted}
+        onClick={handleDeleteSelectedOrders}
         disabled={selectedOrders.length === 0}
       >
-        Ready
+        noted
       </button>
     </div>
   );
