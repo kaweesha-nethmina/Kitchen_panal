@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import './NewReady.css';
 
 const ReadyOrders = () => {
@@ -43,6 +43,39 @@ const ReadyOrders = () => {
 
     const isAllSelected = selectedOrders.length === orders.length;
 
+    // Handle submitting and moving orders to the appropriate collection
+    const handleReady = async () => {
+        try {
+            const ordersToProcess = orders.filter(order => selectedOrders.includes(order.id));
+
+            await Promise.all(
+                ordersToProcess.map(async (order) => {
+                    const targetCollection = order.deliveryOption === "Delivery" ? "delivery" : "takeAway";
+
+                    // Add to the respective collection
+                    await addDoc(collection(db, targetCollection), {
+                        ...order,
+                        timestamp: new Date(),
+                    });
+
+                    // Delete from readyOrders collection using query to locate the exact document
+                    const orderQuery = query(collection(db, "readyOrders"), where("orderId", "==", order.orderId));
+                    const querySnapshot = await getDocs(orderQuery);
+
+                    querySnapshot.forEach(async (doc) => {
+                        await deleteDoc(doc.ref);
+                    });
+                })
+            );
+
+            // Update local state to reflect removed orders
+            setOrders(prevOrders => prevOrders.filter(order => !selectedOrders.includes(order.id)));
+            setSelectedOrders([]); // Clear selected orders
+        } catch (error) {
+            console.error("Error processing ready orders:", error);
+        }
+    };
+
     return (
         <div className="ready-orders-container">
             <h2>Preparing Orders</h2>
@@ -62,9 +95,9 @@ const ReadyOrders = () => {
                         <th>Quantity</th>
                         <th>Price</th>
                         <th>Total Price</th>
+                        <th>Delivery Option</th>
                         <th>Timestamp</th>
-                        
-                        <th>Status</th> {/* New Status column */}
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -86,6 +119,7 @@ const ReadyOrders = () => {
                                     (typeof item.price === 'number' ? item.price.toFixed(2) : item.price)
                                 ).join(", ")}</td>
                                 <td>{order.totalPrice ? order.totalPrice.toFixed(2) : "N/A"}</td>
+                                <td>{order.deliveryOption || "N/A"}</td>
                                 <td>
                                     {order.timestamp ? (
                                         <>
@@ -96,18 +130,19 @@ const ReadyOrders = () => {
                                         "N/A"
                                     )}
                                 </td>
-                                
-                                <td>{order.status || "Pending"}</td> {/* Display order status */}
+                                <td>{order.status || "Pending"}</td>
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="10">No ready orders found</td>
+                            <td colSpan="11">No ready orders found</td>
                         </tr>
                     )}
                 </tbody>
             </table>
-            <button className="ready-button">Ready</button>
+            <button className="ready-button" onClick={handleReady} disabled={selectedOrders.length === 0}>
+                Ready
+            </button>
         </div>
     );
 };

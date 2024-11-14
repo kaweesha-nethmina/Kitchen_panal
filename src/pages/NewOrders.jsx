@@ -31,16 +31,12 @@ const NewOrders = () => {
   // Function to add selected orders to the readyOrders collection and delete them from pendingOrders
   const moveToReadyOrders = async (orderId) => {
     try {
-      // Find the order data by orderId
       const orderToMove = orders.find((order) => order.id === orderId);
       if (orderToMove) {
-        // Add the order data to the readyOrders collection
         await addDoc(collection(db, "readyOrders"), {
           ...orderToMove,
           status: "Ready",
         });
-
-        // Delete the order from pendingOrders
         await deleteOrderByOrderId(orderId);
       }
     } catch (error) {
@@ -57,7 +53,6 @@ const NewOrders = () => {
       if (!querySnapshot.empty) {
         const docRef = doc(db, "pendingOrders", querySnapshot.docs[0].id);
         await deleteDoc(docRef);
-        console.log(`Successfully deleted order with orderId: ${orderId}`);
         setOrders((prevOrders) => prevOrders.filter((order) => order.id !== docRef.id));
       } else {
         console.log("No order found with the specified orderId");
@@ -68,11 +63,15 @@ const NewOrders = () => {
   };
 
   // Handle moving selected orders to readyOrders and then deleting them
-  const handleDeleteSelectedOrders = () => {
-    selectedOrders.forEach((orderId) => {
-      moveToReadyOrders(orderId);
-    });
-    setSelectedOrders([]);
+  const handleDeleteSelectedOrders = async () => {
+    try {
+      const ordersToMove = selectedOrders.map((orderId) => moveToReadyOrders(orderId));
+      await Promise.all(ordersToMove); // Wait for all move operations to complete
+      setSelectedOrders([]);
+      navigate("/dashboard/ready-orders"); // Navigate to the ready-orders page after completion
+    } catch (error) {
+      console.error("Error moving selected orders:", error);
+    }
   };
 
   const toggleSelectOrder = (orderId) => {
