@@ -78,7 +78,7 @@ const ReadyOrders = () => {
 
     return (
         <div className="ready-orders-container">
-            <h2>Preparing Orders</h2>
+            
             <table className="orders-table">
                 <thead>
                     <tr>
