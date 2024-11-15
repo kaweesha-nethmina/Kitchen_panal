@@ -5,6 +5,7 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     text-align: left;
     position: relative;
+    margin-left: 20px;
 }
 
 .profile-details p {

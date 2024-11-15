@@ -1,32 +1,66 @@
+/* Dashboard Container */
 .dashboard-container {
     display: flex;
     font-family: Arial, sans-serif;
-    width: 1520px;
+    height: 100vh;
+    overflow: hidden; /* Prevents overflow on the main container */
 }
 
-.main-content {
-    flex: 1;
-    background-color: #f8f9fa; 
-
-
-}
-
-.content {
+/* Sidebar Styling */
+.sidebar {
+    width: 250px;
+    min-height: 100vh;
+    background-color: #021a5c;
+    color: white;
+    position: fixed;
+    top: 0;
+    left: 0;
     display: flex;
     flex-direction: column;
-    margin-top: 20px;
+    padding: 20px;
+}
+
+/* Main Content Styling */
+.main-content {
+    flex: 1;
+    margin-left: 250px; /* Offsets the sidebar width */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #f8f9fa;
+}
+
+/* Topbar Styling */
+.topbar {
+    background-color: #021a5c;
+    color: white;
+    padding: 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    position: sticky;
+    top: 0;
+    width: 1238px;
+}
+
+/* Content Section Styling */
+.content {
+    flex: 1;
+    overflow-y: auto; /* Makes the content scrollable */
     padding: 30px;
 }
 
 /* Container for the cards in Dashboard */
 .dashboard-cards {
     display: flex;
-    margin-left: 200px;
-    margin-top: 200px;
     gap: 60px;
     flex-wrap: nowrap; /* Keeps cards in a single row */
-    overflow-x: auto; /* Enables horizontal scroll if content overflows */
     padding: 20px 0;
+    margin-left: 250px;
+    margin-top: 100px;
 }
 
 /* Box styling */
@@ -37,7 +71,7 @@
     padding: 40px;
     text-align: center;
     font-size: 1.2em;
-    background-color: #ffea04;
+    background-color: #f7e603;
     color: #000000;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -57,5 +91,14 @@
     top: 10px;
     right: 15px;
     font-size: 1.2em;
-    color: #ffc107; /* Yellow for contrast on blue */
+    color: #ffc107; /* Yellow for contrast */
+}
+
+/* Order count styling */
+.order-count {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+    font-size: 1.5em;
+    color: #333;
 }
